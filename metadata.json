@@ -1,0 +1,5 @@
+{
+  "name": "Modex Ticket System",
+  "description": "A full-featured ticket booking simulation with Admin and User portals, featuring visual seat selection, booking management, and mock backend persistence.",
+  "requestFramePermissions": []
+}
