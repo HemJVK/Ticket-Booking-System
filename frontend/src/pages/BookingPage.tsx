@@ -2,20 +2,20 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Show, Booking } from '../types';
-import { useTicket } from '../context/TicketContext';
+import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
+import { Armchair, ChevronRight } from 'lucide-react';
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth(); // Consume from AuthContext
+  const { user } = useAuth();
   const [show, setShow] = useState<Show | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   const seatContainerRef = useRef<HTMLDivElement>(null);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
-
-  // New State for Seat Count Selection
   const [requiredSeats, setRequiredSeats] = useState<number>(0);
   const [isSeatCountSet, setIsSeatCountSet] = useState(false);
 
@@ -35,75 +35,18 @@ const BookingPage = () => {
     fetchData();
   }, [id]);
 
-  // Direct DOM Manipulation as requested
-  // This effect updates the seat visuals directly on the DOM
-  useEffect(() => {
-    if (!seatContainerRef.current || !show) return;
+  const isBooked = (seatNum: number) => bookings.some(b => b.seat_number === seatNum && b.status === 'CONFIRMED');
+  const isSelected = (seatNum: number) => selectedSeats.includes(seatNum);
 
-    // Clear previous children
-    seatContainerRef.current.innerHTML = '';
+  const handleSeatClick = (seatNum: number) => {
+      if (isBooked(seatNum)) return;
 
-    for (let i = 1; i <= show.total_seats; i++) {
-      const seatEl = document.createElement('div');
-      seatEl.textContent = i.toString();
-      seatEl.className =
-        'w-10 h-10 flex items-center justify-center border rounded cursor-pointer transition select-none';
-
-      const isBooked = bookings.some((b) => b.seat_number === i && b.status === 'CONFIRMED');
-
-      if (isBooked) {
-        seatEl.classList.add('bg-red-300', 'cursor-not-allowed', 'text-white');
-        seatEl.onclick = null;
-      } else {
-        // Check if selected by current user (in React state)
-        if (selectedSeats.includes(i)) {
-             seatEl.classList.add('bg-green-500', 'text-white');
-        } else {
-             seatEl.classList.add('bg-gray-100', 'hover:bg-green-200');
-        }
-
-        // Direct DOM event listener
-        seatEl.onclick = () => {
-           handleSeatClick(i, seatEl);
-        };
-      }
-      seatContainerRef.current.appendChild(seatEl);
-    }
-  }, [show, bookings, selectedSeats]);
-
-  const handleSeatClick = (seatNum: number, el: HTMLElement) => {
-      // Toggle selection state
-      // We need to update React state to trigger re-renders or API calls logic
-      // But we can also manipulate DOM classes here immediately for feedback
-
-      if (el.classList.contains('bg-green-500')) {
-          // Deselect
-          el.classList.remove('bg-green-500', 'text-white');
-          el.classList.add('bg-gray-100', 'hover:bg-green-200');
+      if (isSelected(seatNum)) {
           setSelectedSeats(prev => prev.filter(s => s !== seatNum));
       } else {
-          // Select
-          el.classList.remove('bg-gray-100', 'hover:bg-green-200');
-          el.classList.add('bg-green-500', 'text-white');
-          setSelectedSeats(prev => [...prev, seatNum]);
-      }
-  };
-
-
-  const handleSeatClick = (seatNum: number, el: HTMLElement) => {
-      if (el.classList.contains('bg-green-500')) {
-          // Deselect
-          el.classList.remove('bg-green-500', 'text-white');
-          el.classList.add('bg-gray-100', 'hover:bg-green-200');
-          setSelectedSeats(prev => prev.filter(s => s !== seatNum));
-      } else {
-          // Select - Check limit
           if (selectedSeats.length >= requiredSeats) {
-              alert(`You can only select ${requiredSeats} seats.`);
               return;
           }
-          el.classList.remove('bg-gray-100', 'hover:bg-green-200');
-          el.classList.add('bg-green-500', 'text-white');
           setSelectedSeats(prev => [...prev, seatNum]);
       }
   };
@@ -114,12 +57,6 @@ const BookingPage = () => {
           return;
       }
       if (selectedSeats.length !== requiredSeats) return;
-
-      // We process the first seat to create the "Group Booking" ID or just book them all.
-      // For simplicity, we treat the FIRST successful booking as the main reference for payment.
-      // Or we can group them. The payment flow expects a single bookingId.
-      // So let's modify backend to support group booking? Or just pick one ID.
-      // I'll pick the first one.
 
       let primaryBookingId = null;
       let amount = 0;
@@ -135,96 +72,147 @@ const BookingPage = () => {
               if (!primaryBookingId) primaryBookingId = res.data.id;
               amount += pricePerSeat;
           } catch (error) {
-              alert(`Seat ${seat} could not be booked. Please try another.`);
-              window.location.reload(); // Hard reset on failure
+              alert(`Seat ${seat} could not be booked.`);
+              window.location.reload();
               return;
           }
       }
 
-      // Redirect to Payment
       if (primaryBookingId) {
           navigate(`/payment/${primaryBookingId}`, { state: { amount } });
       }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (!show) return <div>Show not found</div>;
+  if (loading) return <div className="min-h-screen bg-cinema-900 text-white flex justify-center items-center">Loading...</div>;
+  if (!show) return <div className="min-h-screen bg-cinema-900 text-white flex justify-center items-center">Show not found</div>;
 
+  // Seat Count Selection Screen
   if (!isSeatCountSet) {
       return (
-          <div className="min-h-screen flex items-center justify-center bg-gray-100">
-              <div className="bg-white p-8 rounded shadow text-center">
-                  <h2 className="text-xl font-bold mb-4">How many seats?</h2>
-                  <div className="flex gap-2 justify-center mb-6">
+          <div className="min-h-screen bg-cinema-900 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-cinema-800 p-8 rounded-2xl shadow-2xl border border-white/10 text-center max-w-md w-full"
+              >
+                  <h2 className="text-2xl font-bold mb-2 text-white">How many seats?</h2>
+                  <p className="text-gray-400 mb-8">Select the number of tickets you want to book</p>
+
+                  <div className="grid grid-cols-3 gap-4 mb-8">
                       {[1, 2, 3, 4, 5, 6].map(num => (
-                          <button
+                          <motion.button
                             key={num}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => { setRequiredSeats(num); setIsSeatCountSet(true); }}
-                            className="w-10 h-10 rounded-full border hover:bg-red-600 hover:text-white transition"
+                            className="bg-cinema-900 border border-white/10 hover:border-cinema-red hover:bg-cinema-red text-white py-4 rounded-xl text-xl font-bold transition-colors"
                           >
                               {num}
-                          </button>
+                          </motion.button>
                       ))}
                   </div>
-              </div>
+
+                  <div className="w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+              </motion.div>
           </div>
       );
   }
 
+  // Booking Screen
   return (
-    <div className="p-4 container mx-auto">
-      <h1 className="text-2xl font-bold mb-2">{show.name}</h1>
-      <p className="text-gray-600 mb-6">{new Date(show.start_time).toLocaleString()}</p>
+    <div className="bg-cinema-900 min-h-screen text-white p-4 pb-20">
+      <div className="container mx-auto max-w-5xl">
+          <div className="mb-8 flex justify-between items-end border-b border-white/10 pb-4">
+              <div>
+                  <h1 className="text-3xl font-bold text-white mb-1">{show.name}</h1>
+                  <p className="text-gray-400">{new Date(show.start_time).toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                  <p className="text-sm text-gray-400">Tickets</p>
+                  <p className="text-2xl font-bold text-cinema-red">{requiredSeats}</p>
+              </div>
+          </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="flex-1">
-            <h2 className="text-lg font-semibold mb-4">Select {requiredSeats} Seats</h2>
-            <div className="mb-4 p-4 bg-gray-200 rounded text-center text-sm">SCREEN</div>
-            <div
-                ref={seatContainerRef}
-                className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-w-2xl mx-auto"
-            >
-                {/* DOM nodes injected here */}
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Screen & Seats */}
+            <div className="flex-1">
+                {/* Screen Visual */}
+                <div className="mb-10 relative perspective-[1000px]">
+                     <div className="h-16 bg-white/10 rounded-t-[50%] shadow-[0_10px_30px_rgba(255,255,255,0.1)] w-3/4 mx-auto screen-perspective transform origin-bottom"></div>
+                     <p className="text-center text-gray-500 text-sm mt-4 tracking-[0.5em] uppercase">Screen</p>
+                </div>
+
+                {/* Seat Grid */}
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3 max-w-2xl mx-auto px-4">
+                    {Array.from({ length: show.total_seats }, (_, i) => i + 1).map(seatNum => {
+                        const booked = isBooked(seatNum);
+                        const selected = isSelected(seatNum);
+
+                        return (
+                            <motion.button
+                                key={seatNum}
+                                whileHover={!booked ? { scale: 1.1 } : {}}
+                                whileTap={!booked ? { scale: 0.9 } : {}}
+                                onClick={() => handleSeatClick(seatNum)}
+                                disabled={booked}
+                                className={`
+                                    relative flex items-center justify-center p-2 rounded-lg transition-colors duration-300
+                                    ${booked ? 'text-gray-700 cursor-not-allowed' :
+                                      selected ? 'text-cinema-red drop-shadow-[0_0_8px_rgba(229,9,20,0.6)]' :
+                                      'text-gray-500 hover:text-white'}
+                                `}
+                            >
+                                <Armchair size={32} fill={selected || booked ? 'currentColor' : 'none'} strokeWidth={1.5} />
+                                <span className="absolute text-[10px] font-bold top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none mix-blend-difference">
+                                    {seatNum}
+                                </span>
+                            </motion.button>
+                        );
+                    })}
+                </div>
+
+                {/* Legend */}
+                <div className="mt-12 flex justify-center gap-6 text-sm text-gray-400">
+                    <div className="flex items-center gap-2"><Armchair size={20} className="text-gray-500" /> Available</div>
+                    <div className="flex items-center gap-2"><Armchair size={20} className="text-cinema-red" fill="currentColor" /> Selected</div>
+                    <div className="flex items-center gap-2"><Armchair size={20} className="text-gray-700" fill="currentColor" /> Booked</div>
+                </div>
             </div>
 
-            <div className="mt-4 flex gap-4 text-sm justify-center">
-                <span className="flex items-center"><div className="w-4 h-4 bg-gray-100 border mr-1"></div> Available</span>
-                <span className="flex items-center"><div className="w-4 h-4 bg-green-500 mr-1"></div> Selected</span>
-                <span className="flex items-center"><div className="w-4 h-4 bg-red-300 mr-1"></div> Booked</span>
-            </div>
-        </div>
+            {/* Summary Card */}
+            <div className="w-full lg:w-80 shrink-0">
+                 <div className="bg-cinema-800 p-6 rounded-xl border border-white/10 sticky top-24 shadow-2xl">
+                     <h3 className="text-xl font-bold mb-6 border-b border-white/10 pb-4">Booking Summary</h3>
 
-        <div className="w-full lg:w-1/3">
-             <div className="bg-white p-6 rounded shadow border">
-                 <h3 className="text-xl font-bold mb-4">Booking Summary</h3>
-                 <div className="space-y-2 mb-4">
-                     <div className="flex justify-between">
-                         <span>Movie</span>
-                         <span className="font-semibold">{show.name}</span>
+                     <div className="space-y-4 mb-6 text-sm">
+                         <div className="flex justify-between">
+                             <span className="text-gray-400">Seat(s)</span>
+                             <span className="font-bold text-white">{selectedSeats.length > 0 ? selectedSeats.join(', ') : '-'}</span>
+                         </div>
+                         <div className="flex justify-between">
+                             <span className="text-gray-400">Price</span>
+                             <span className="font-bold text-white">$10.00 x {requiredSeats}</span>
+                         </div>
+                         <div className="flex justify-between">
+                             <span className="text-gray-400">Fee</span>
+                             <span className="font-bold text-white">$2.00</span>
+                         </div>
+                         <div className="border-t border-white/10 pt-4 flex justify-between text-lg font-bold text-cinema-gold">
+                             <span>Total</span>
+                             <span>${requiredSeats * 10 + 2}</span>
+                         </div>
                      </div>
-                     <div className="flex justify-between">
-                         <span>Seats</span>
-                         <span className="font-semibold">{requiredSeats}</span>
-                     </div>
-                     <div className="flex justify-between">
-                         <span>Selected</span>
-                         <span className="font-semibold">{selectedSeats.join(', ')}</span>
-                     </div>
-                     <div className="border-t pt-2 mt-2 flex justify-between text-lg font-bold">
-                         <span>Total</span>
-                         <span>${requiredSeats * 10}</span>
-                     </div>
+
+                     <button
+                        onClick={handleBooking}
+                        disabled={selectedSeats.length !== requiredSeats}
+                        className="w-full bg-cinema-red text-white py-4 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700 transition flex items-center justify-center gap-2"
+                      >
+                          Proceed to Payment <ChevronRight size={18} />
+                      </button>
                  </div>
-
-                 <button
-                    onClick={handleBooking}
-                    disabled={selectedSeats.length !== requiredSeats}
-                    className="w-full bg-red-600 text-white py-3 rounded font-bold disabled:opacity-50 hover:bg-red-700"
-                  >
-                      Proceed to Payment
-                  </button>
-             </div>
-        </div>
+            </div>
+          </div>
       </div>
     </div>
   );
