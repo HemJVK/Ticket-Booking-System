@@ -87,7 +87,7 @@ const LandingPage = () => {
             {/* Movie List */}
             <div className="container mx-auto px-6">
                 <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-3xl font-bold border-l-4 border-cinema-red pl-4">Trending Now</h2>
+                    <h2 className="text-3xl font-bold border-l-4 border-cinema-red pl-4 text-white">Trending Now</h2>
                     <a href="#" className="text-cinema-red hover:text-white transition">View All</a>
                 </div>
 

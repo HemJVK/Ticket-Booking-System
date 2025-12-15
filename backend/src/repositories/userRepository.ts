@@ -6,9 +6,10 @@ export const findUserByEmail = async (email: string) => {
 };
 
 export const createUser = async (email: string, passwordHash: string, name: string) => {
+    // Default role is USER, admins must be set manually in DB for now
     const res = await pool.query(
-        'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-        [email, passwordHash, name]
+        'INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role',
+        [email, passwordHash, name, 'USER']
     );
     return res.rows[0];
 };

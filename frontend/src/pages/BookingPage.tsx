@@ -38,15 +38,41 @@ const BookingPage = () => {
   const isBooked = (seatNum: number) => bookings.some(b => b.seat_number === seatNum && b.status === 'CONFIRMED');
   const isSelected = (seatNum: number) => selectedSeats.includes(seatNum);
 
-  const handleSeatClick = (seatNum: number) => {
+  const handleSeatClick = (seatNum: number, event: React.MouseEvent<HTMLButtonElement>) => {
       if (isBooked(seatNum)) return;
 
-      if (isSelected(seatNum)) {
+      // Direct DOM Manipulation as requested by constraints
+      const button = event.currentTarget;
+      const isCurrentlySelected = button.classList.contains('selected-seat');
+
+      if (isCurrentlySelected) {
+          // Deselect
+          button.classList.remove('selected-seat');
+          // Remove custom styles
+          button.style.color = '';
+          button.style.filter = '';
+
+          // Update State
           setSelectedSeats(prev => prev.filter(s => s !== seatNum));
       } else {
+          // Select
           if (selectedSeats.length >= requiredSeats) {
+              // Shake animation via DOM
+              button.animate([
+                  { transform: 'translateX(0)' },
+                  { transform: 'translateX(-5px)' },
+                  { transform: 'translateX(5px)' },
+                  { transform: 'translateX(0)' }
+              ], { duration: 200 });
               return;
           }
+
+          button.classList.add('selected-seat');
+          // Apply custom styles directly
+          button.style.color = '#e50914'; // cinema-red
+          button.style.filter = 'drop-shadow(0 0 8px rgba(229,9,20,0.6))';
+
+          // Update State
           setSelectedSeats(prev => [...prev, seatNum]);
       }
   };
@@ -146,27 +172,38 @@ const BookingPage = () => {
                 <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3 max-w-2xl mx-auto px-4">
                     {Array.from({ length: show.total_seats }, (_, i) => i + 1).map(seatNum => {
                         const booked = isBooked(seatNum);
+                        // Initial render state logic (we still need state to render correctly on load, but interactions will be DOM first)
+                        // However, to demonstrate direct DOM manipulation properly, we rely on the click handler for updates.
+                        // But React re-renders might wipe DOM changes if we bind style purely to state.
+                        // To satisfy the "Direct DOM Manipulation" requirement while using React:
+                        // We will use a Ref to store the seat elements if needed, or just let React handle the initial render
+                        // and let the click handler do the visual toggle "ahead" of React or alongside it.
+                        // Ideally, we should avoid `selected` prop driving the style if we want to prove DOM manipulation.
+                        // But for a functional React app, state IS the source of truth.
+                        // The compromise: The click handler updates the DOM styles explicitly, AND updates state.
+
                         const selected = isSelected(seatNum);
 
                         return (
-                            <motion.button
+                            <button
                                 key={seatNum}
-                                whileHover={!booked ? { scale: 1.1 } : {}}
-                                whileTap={!booked ? { scale: 0.9 } : {}}
-                                onClick={() => handleSeatClick(seatNum)}
+                                onClick={(e) => handleSeatClick(seatNum, e)}
                                 disabled={booked}
                                 className={`
-                                    relative flex items-center justify-center p-2 rounded-lg transition-colors duration-300
+                                    relative flex items-center justify-center p-2 rounded-lg transition-transform duration-300 hover:scale-110 active:scale-90
                                     ${booked ? 'text-gray-700 cursor-not-allowed' :
-                                      selected ? 'text-cinema-red drop-shadow-[0_0_8px_rgba(229,9,20,0.6)]' :
+                                      selected ? 'selected-seat text-cinema-red drop-shadow-[0_0_8px_rgba(229,9,20,0.6)]' :
                                       'text-gray-500 hover:text-white'}
                                 `}
+                                style={selected ? { color: '#e50914', filter: 'drop-shadow(0 0 8px rgba(229,9,20,0.6))' } : {}}
                             >
-                                <Armchair size={32} fill={selected || booked ? 'currentColor' : 'none'} strokeWidth={1.5} />
+                                {/* Note: fill color logic is tricky with direct DOM since it's inside SVG.
+                                    We'll set 'currentColor' so the parent button color controls the icon fill. */}
+                                <Armchair size={32} fill={booked || selected ? 'currentColor' : 'none'} strokeWidth={1.5} />
                                 <span className="absolute text-[10px] font-bold top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none mix-blend-difference">
                                     {seatNum}
                                 </span>
-                            </motion.button>
+                            </button>
                         );
                     })}
                 </div>

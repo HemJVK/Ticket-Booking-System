@@ -23,15 +23,24 @@ const NavBar = () => {
           {user ? (
               <>
                  <span className="text-gray-600">Hi, {user.name}</span>
+                 {/* Only show Admin link if user is admin */}
+                 {(user as any).role === 'ADMIN' && <Link to="/admin" className="text-red-600 font-bold">Admin Panel</Link>}
                  <button onClick={logout} className="text-red-500 hover:text-red-700">Logout</button>
               </>
           ) : (
               <Link to="/login" className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Login</Link>
           )}
-          <Link to="/admin" className="text-sm text-gray-400 hover:text-gray-600">Admin</Link>
         </div>
       </nav>
     );
+};
+
+const AdminRoute = ({ children }: { children: JSX.Element }) => {
+    const { user, loading } = useAuth();
+    if (loading) return <div>Loading...</div>;
+    // Cast to any to access role until types are strictly updated
+    if (!user || (user as any).role !== 'ADMIN') return <div className="p-10 text-center text-red-600 font-bold text-2xl">Access Denied. Admins Only.</div>;
+    return children;
 };
 
 function App() {
@@ -45,7 +54,11 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/movie/:id" element={<MovieDetailsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin" element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          } />
           <Route path="/booking/:id" element={<BookingPage />} />
           <Route path="/payment/:bookingId" element={<PaymentPage />} />
           <Route path="/ticket/:code" element={<TicketPage />} />
