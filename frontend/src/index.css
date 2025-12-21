@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cinema-900: #0f0f0f;
+  --color-cinema-800: #1a1a1a;
+  --color-cinema-700: #2a2a2a;
+  --color-cinema-600: #3a3a3a;
+  --color-cinema-red: #e50914;
+  --color-cinema-gold: #e5c100;
+
+  --font-display: Montserrat, sans-serif;
+  --font-sans: Inter, sans-serif;
+
+  --animate-fade-in: fadeIn 0.5s ease-out;
+  --animate-slide-up: slideUp 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e50914;
+}
+
+/* Slick Dots Customization */
+.slick-dots li button:before {
+  color: white !important;
+  opacity: 0.5;
+}
+.slick-dots li.slick-active button:before {
+  color: #e50914 !important;
+  opacity: 1;
+}
+
+/* Cinema Seat 3D Perspective */
+.screen-perspective {
+  transform: perspective(1000px) rotateX(5deg) scale(0.9);
+  box-shadow: 0 50px 40px -20px rgba(255, 255, 255, 0.1);
+}
+.screen-glow {
+    box-shadow: 0 -20px 60px -10px rgba(255,255,255,0.1);
+}
